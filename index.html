@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LIFF 使用者資料展示</title>
+  <title>打卡系統</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -53,12 +53,13 @@
   </style>
 </head>
 <body>
-  <h1>LIFF 使用者資訊</h1>
-  <button id="getUserInfo">取得使用者資訊</button>
-
+  <h1>打卡系統</h1>
   <div id="userInfo">
-    <p>請點擊上方按鈕以取得資料</p>
+    <p>請點擊下方按鈕以取得使用者資料與打卡功能</p>
   </div>
+
+  <button id="clockInButton">上班打卡</button>
+  <button id="clockOutButton">下班打卡</button>
 
   <div id="debug">
     <strong>除錯資訊：</strong>
@@ -66,6 +67,8 @@
   </div>
 
   <script>
+    const GAS_URL = "YOUR_GAS_WEBAPP_URL"; // 請替換為你的 GAS Web App URL
+
     async function initLiff() {
       try {
         await liff.init({ liffId: "2007299608-bXQzyQ6e" });
@@ -103,9 +106,77 @@
       }
     }
 
-    document.getElementById("getUserInfo").addEventListener("click", getUserInfo);
+    async function getLocationAndClock(type) {
+      const debugEl = document.getElementById("debugText");
+      if (!navigator.geolocation) {
+        debugEl.textContent = "❌ 這個瀏覽器不支援 GPS 定位功能";
+        return;
+      }
 
+      debugEl.textContent = "🔄 正在取得位置...";
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+
+          // 取得使用者資訊
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+          }
+
+          const userId = liff.getDecodedIDToken()?.sub;
+          const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
+          const profile = await liff.getProfile();
+
+          const data = {
+            userId,
+            email,
+            name: profile.displayName,
+            picture: profile.pictureUrl,
+            latitude,
+            longitude,
+            clockType: type, // '上班' 或 '下班'
+          };
+
+          // 傳送資料到 GAS
+          try {
+            const response = await fetch(GAS_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(data),
+            });
+
+            if (response.ok) {
+              debugEl.textContent = `✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功！`;
+            } else {
+              debugEl.textContent = `❌ 打卡失敗：${await response.text()}`;
+            }
+          } catch (err) {
+            debugEl.textContent = "❌ 網路錯誤：" + JSON.stringify(err);
+            console.error("Error:", err);
+          }
+        },
+        (error) => {
+          debugEl.textContent = "❌ 取得位置失敗：" + error.message;
+        }
+      );
+    }
+
+    document.getElementById("clockInButton").addEventListener("click", () => {
+      getLocationAndClock('clockIn'); // 上班打卡
+    });
+
+    document.getElementById("clockOutButton").addEventListener("click", () => {
+      getLocationAndClock('clockOut'); // 下班打卡
+    });
+
+    // 初始化 LIFF
     initLiff();
+    // 取得使用者資訊
+    getUserInfo();
   </script>
 </body>
 </html>
