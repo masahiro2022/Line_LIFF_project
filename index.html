@@ -36,24 +36,30 @@
       max-width: 400px;
       margin: 0 auto 2rem;
     }
-    #debug, #debugDetails {
-      max-width: 400px;
+    #debug {
+      max-width: 600px;
       margin: 1rem auto;
       text-align: left;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    #debug {
-      font-size: 0.95rem;
-      color: #555;
-    }
-    #debugDetails {
-      background: #fff;
-      padding: 1rem;
-      font-size: 0.85rem;
-      border-radius: 5px;
+      font-size: 0.9rem;
+      background: #ffffff;
+      border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      color: #999;
+      padding: 1rem;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      max-height: 300px;
+    }
+    .log-entry {
+      margin-bottom: 0.75rem;
+      border-left: 4px solid #ccc;
+      padding-left: 0.75rem;
+    }
+    .log-entry.success { border-color: #2ecc71; }
+    .log-entry.error { border-color: #e74c3c; }
+    .log-entry.info  { border-color: #3498db; }
+    .timestamp {
+      color: #888;
+      font-size: 0.8rem;
     }
     img {
       border-radius: 10px;
@@ -72,31 +78,39 @@
   <button id="clockOutButton">下班打卡</button>
 
   <div id="debug">
-    <strong>除錯資訊：</strong>
-    <div id="debugText">等待初始化...</div>
+    <div class="log-entry info">
+      <div class="timestamp">頁面載入中...</div>
+    </div>
   </div>
-  <div id="debugDetails"></div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxwIP3lsclY2vwNEupbbr1d15bDSfos088EkJPP52OqmJhWJzN6z4qu_7CSPm4Uefbq/exec"; // <--- 請換成你的正式 URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxwIP3lsclY2vwNEupbbr1d15bDSfos088EkJPP52OqmJhWJzN6z4qu_7CSPm4Uefbq/exec"; // 替換為你的網址
 
-    function updateDebug(status, details = "") {
-      const timestamp = new Date().toLocaleString();
-      document.getElementById("debugText").textContent = `【${timestamp}】 ${status}`;
-      document.getElementById("debugDetails").textContent = details ? `📌 詳細資訊：\n${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}` : "";
+    function updateDebug(status, details = "", type = "info") {
+      const timestamp = new Date().toLocaleTimeString();
+      const log = document.createElement("div");
+      log.className = `log-entry ${type}`;
+
+      log.innerHTML = `
+        <div class="timestamp">[${timestamp}] ${status}</div>
+        ${details ? `<div style="margin-top: 0.3rem; color:#666;">${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}</div>` : ""}
+      `;
+
+      document.getElementById("debug").appendChild(log);
+      document.getElementById("debug").scrollTop = document.getElementById("debug").scrollHeight;
     }
 
     async function initLiff() {
       try {
         await liff.init({ liffId: "2007299608-bXQzyQ6e" });
-        updateDebug("✅ LIFF 初始化成功");
+        updateDebug("✅ LIFF 初始化成功", "", "success");
         if (!liff.isLoggedIn()) {
           liff.login();
         } else {
           getUserInfo();
         }
       } catch (error) {
-        updateDebug("❌ LIFF 初始化失敗", error.message || JSON.stringify(error));
+        updateDebug("❌ LIFF 初始化失敗", error.message || JSON.stringify(error), "error");
       }
     }
 
@@ -108,28 +122,28 @@
 
         document.getElementById("userInfo").innerHTML = `
           <p><strong>名字：</strong>${profile.displayName}</p>
-          <img src="${profile.pictureUrl}" width="100" />        
+          <img src="${profile.pictureUrl}" width="100" />
         `;
 
-        updateDebug("✅ 使用者資訊載入成功");
+        updateDebug("✅ 使用者資訊載入成功", "", "success");
       } catch (err) {
-        updateDebug("❌ 取得使用者資訊失敗", err.message || JSON.stringify(err));
+        updateDebug("❌ 取得使用者資訊失敗", err.message || JSON.stringify(err), "error");
       }
     }
 
     async function getLocationAndClock(type) {
       if (!navigator.geolocation) {
-        updateDebug("❌ 這個瀏覽器不支援 GPS 功能");
+        updateDebug("❌ 這個瀏覽器不支援 GPS 功能", "", "error");
         return;
       }
 
-      updateDebug("📍 正在取得 GPS 位置...");
+      updateDebug("📍 正在取得 GPS 位置...", "", "info");
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
 
-          updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`);
+          updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`, "success");
 
           try {
             const userId = liff.getDecodedIDToken()?.sub;
@@ -153,16 +167,16 @@
             const resultText = await response.text();
 
             if (response.ok) {
-              updateDebug(`✅ ${type === "clockIn" ? "上班" : "下班"}打卡成功`, resultText);
+              updateDebug(`✅ ${type === "clockIn" ? "上班" : "下班"}打卡成功`, resultText, "success");
             } else {
-              updateDebug("❌ 打卡失敗", resultText);
+              updateDebug("❌ 打卡失敗", resultText, "error");
             }
           } catch (err) {
-            updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err));
+            updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
           }
         },
         (error) => {
-          updateDebug("❌ 取得 GPS 位置失敗", error.message);
+          updateDebug("❌ 取得 GPS 位置失敗", error.message, "error");
         }
       );
     }
