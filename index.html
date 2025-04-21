@@ -85,7 +85,7 @@
       const timestamp = new Date().toLocaleString();
 
       debugEl.textContent = `【${timestamp}】 ${status}`;
-      debugDetailsEl.textContent = details ? `📌 詳細資訊：${details}` : "";
+      debugDetailsEl.textContent = details ? `📌 詳細資訊：${JSON.stringify(details, null, 2)}` : "";
     }
 
     async function initLiff() {
@@ -156,18 +156,20 @@
           try {
             const response = await fetch(GAS_URL, {
               method: 'POST',
-              headers: {'Content-Type': 'application/json'},
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data),
             });
 
+            const responseText = await response.text();
+
             if (response.ok) {
-              updateDebug(`✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功！`);
+               updateDebug(`✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功！`, responseText);
             } else {
-              updateDebug(`❌ 打卡失敗`, await response.text());
+              updateDebug(`❌ 打卡失敗`, responseText);
             }
           } catch (err) {
-            updateDebug("❌ 網路錯誤", JSON.stringify(err));
-            console.error("Error:", err);
+              updateDebug("❌ 網路錯誤", err.message || JSON.stringify(err));
+              console.error("網路錯誤:", err);
           }
         },
         (error) => {
