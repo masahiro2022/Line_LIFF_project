@@ -1,48 +1,110 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE LIFF Example</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LIFF 使用者資料展示</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background-color: #f0f4f8;
+      margin: 0;
+      padding: 2rem;
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    button {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      background-color: #00c300;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 1.5rem;
+    }
+    #userInfo {
+      background-color: white;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    #debug {
+      margin-top: 2rem;
+      color: #888;
+      font-size: 0.9rem;
+      text-align: left;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+      word-break: break-word;
+    }
+    img {
+      border-radius: 10px;
+      margin-top: 0.5rem;
+    }
+  </style>
 </head>
 <body>
-  <h1>LINE LIFF Example</h1>
+  <h1>LIFF 使用者資訊</h1>
   <button id="getUserInfo">取得使用者資訊</button>
-  <div id="userInfo"></div>
+
+  <div id="userInfo">
+    <p>請點擊上方按鈕以取得資料</p>
+  </div>
+
+  <div id="debug">
+    <strong>除錯資訊：</strong>
+    <pre id="debugText">等待初始化...</pre>
+  </div>
 
   <script>
-    // 初始化 LIFF
     async function initLiff() {
       try {
-        await liff.init({ liffId: "2007299608-bXQzyQ6e" }); // 替換為你的 LIFF ID
-        console.log("LIFF 初始化成功");
+        await liff.init({ liffId: "2007299608-bXQzyQ6e" });
+        document.getElementById("debugText").textContent = "✅ LIFF 初始化成功";
       } catch (error) {
+        document.getElementById("debugText").textContent = "❌ 初始化失敗：" + JSON.stringify(error);
         console.error("LIFF 初始化失敗", error);
       }
     }
 
-    // 取得使用者資訊
     async function getUserInfo() {
-      if (liff.isLoggedIn()) {
-        try {
-          const profile = await liff.getProfile();
-          document.getElementById("userInfo").innerHTML = `
-            <p>名字: ${profile.displayName}</p>
-            <img src="${profile.pictureUrl}" alt="Profile Picture" width="100" />
-            <p>狀態: ${profile.statusMessage}</p>
-          `;
-        } catch (error) {
-          console.error("無法取得使用者資訊", error);
-        }
-      } else {
+      const debugEl = document.getElementById("debugText");
+      if (!liff.isLoggedIn()) {
+        debugEl.textContent = "🔄 尚未登入，嘗試登入中...";
         liff.login();
+        return;
+      }
+
+      try {
+        const profile = await liff.getProfile();
+        const userId = liff.getDecodedIDToken()?.sub;
+        const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
+        const infoHTML = `
+          <p><strong>名字：</strong>${profile.displayName}</p>
+          <img src="${profile.pictureUrl}" width="100" alt="頭像"/>
+          <p><strong>狀態：</strong>${profile.statusMessage || "（無）"}</p>
+          <p><strong>使用者 ID：</strong>${userId}</p>
+          <p><strong>Email：</strong>${email}</p>
+        `;
+        document.getElementById("userInfo").innerHTML = infoHTML;
+        debugEl.textContent = "✅ 使用者資訊載入成功";
+      } catch (err) {
+        debugEl.textContent = "❌ 取得資訊失敗：" + JSON.stringify(err);
+        console.error("getUserInfo error", err);
       }
     }
 
     document.getElementById("getUserInfo").addEventListener("click", getUserInfo);
 
-    // 啟動應用
     initLiff();
   </script>
 </body>
