@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE LIFF Example</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+  <h1>LINE LIFF Example</h1>
+  <button id="getUserInfo">取得使用者資訊</button>
+  <div id="userInfo"></div>
+
+  <script>
+    // 初始化 LIFF
+    async function initLiff() {
+      try {
+        await liff.init({ liffId: "YOUR_LIFF_ID" }); // 替換為你的 LIFF ID
+        console.log("LIFF 初始化成功");
+      } catch (error) {
+        console.error("LIFF 初始化失敗", error);
+      }
+    }
+
+    // 取得使用者資訊
+    async function getUserInfo() {
+      if (liff.isLoggedIn()) {
+        try {
+          const profile = await liff.getProfile();
+          document.getElementById("userInfo").innerHTML = `
+            <p>名字: ${profile.displayName}</p>
+            <img src="${profile.pictureUrl}" alt="Profile Picture" width="100" />
+            <p>狀態: ${profile.statusMessage}</p>
+          `;
+        } catch (error) {
+          console.error("無法取得使用者資訊", error);
+        }
+      } else {
+        liff.login();
+      }
+    }
+
+    document.getElementById("getUserInfo").addEventListener("click", getUserInfo);
+
+    // 啟動應用
+    initLiff();
+  </script>
+</body>
+</html>
