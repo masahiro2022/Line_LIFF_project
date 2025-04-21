@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title></title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>打卡系統</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -26,7 +26,7 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      margin-bottom: 1.5rem;
+      margin: 0.5rem;
     }
     #userInfo {
       background-color: white;
@@ -34,16 +34,14 @@
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       max-width: 400px;
-      margin: 0 auto;
+      margin: 0 auto 2rem;
     }
     #debug {
-      margin-top: 2rem;
       color: #888;
       font-size: 0.9rem;
       text-align: left;
       max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
+      margin: 0 auto;
       word-break: break-word;
     }
     #debugDetails {
@@ -52,8 +50,7 @@
       padding: 1rem;
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 400px;
-      margin: 1rem auto;
+      margin-top: 1rem;
     }
     img {
       border-radius: 10px;
@@ -77,13 +74,12 @@
   </div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzFtkM4z9Zp9eKH-ufy1VwKQzrT1DPPJm0OvkzUt76CdK1CmXD3sYm1EGNFj5Li0doj/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwZXCPrgTUoQJ0VeGkECAirvHkVh67k2UkOCw2FvYawhqfvVFFtCugLUtjV8pr4wuXy/exec";
 
     function updateDebug(status, details = "") {
       const debugEl = document.getElementById("debugText");
       const debugDetailsEl = document.getElementById("debugDetails");
       const timestamp = new Date().toLocaleString();
-
       debugEl.textContent = `【${timestamp}】 ${status}`;
       debugDetailsEl.textContent = details ? `📌 詳細資訊：${JSON.stringify(details, null, 2)}` : "";
     }
@@ -92,19 +88,22 @@
       try {
         await liff.init({ liffId: "2007299608-bXQzyQ6e" });
         updateDebug("✅ LIFF 初始化成功");
+
+        if (!liff.isLoggedIn()) {
+          updateDebug("🔄 尚未登入，重新導向登入中...");
+          liff.login();
+          return;
+        }
+
+        await getUserInfo(); // 成功登入後才撈資料
       } catch (error) {
-        updateDebug("❌ LIFF 初始化失敗", JSON.stringify(error));
+        updateDebug("❌ LIFF 初始化失敗", error);
         console.error("LIFF 初始化失敗", error);
+        alert("LIFF 初始化失敗，請重新開啟");
       }
     }
 
     async function getUserInfo() {
-      if (!liff.isLoggedIn()) {
-        updateDebug("🔄 尚未登入，嘗試登入中...");
-        liff.login();
-        return;
-      }
-
       try {
         const profile = await liff.getProfile();
         const userId = liff.getDecodedIDToken()?.sub;
@@ -116,16 +115,19 @@
           <p><strong>使用者 ID：</strong>${userId}</p>
           <p><strong>Email：</strong>${email}</p>
         `;
+
         updateDebug("✅ 使用者資訊載入成功");
       } catch (err) {
-        updateDebug("❌ 取得使用者資訊失敗", JSON.stringify(err));
+        updateDebug("❌ 取得使用者資訊失敗", err);
         console.error("getUserInfo error", err);
+        alert("取得使用者資訊失敗，請重新嘗試");
       }
     }
 
     async function getLocationAndClock(type) {
       if (!navigator.geolocation) {
-        updateDebug("❌ 這個瀏覽器不支援 GPS 定位功能");
+        updateDebug("❌ 這個瀏覽器不支援 GPS");
+        alert("您的瀏覽器不支援 GPS 功能");
         return;
       }
 
@@ -134,7 +136,7 @@
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          updateDebug("✅ GPS 位置取得成功", `緯度: ${latitude}, 經度: ${longitude}`);
+          updateDebug("✅ GPS 位置取得成功", { latitude, longitude });
 
           if (!liff.isLoggedIn()) {
             liff.login();
@@ -142,6 +144,12 @@
           }
 
           const userId = liff.getDecodedIDToken()?.sub;
+          if (!userId) {
+            updateDebug("❌ 無法取得使用者 ID，請重新登入");
+            alert("使用者驗證失敗，請重新登入");
+            return;
+          }
+
           const profile = await liff.getProfile();
 
           const data = {
@@ -155,39 +163,43 @@
 
           try {
             const response = await fetch(GAS_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify(data),
             });
 
             const responseText = await response.text();
 
             if (response.ok) {
-               updateDebug(`✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功！`, responseText);
+              updateDebug(`✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功`, responseText);
+              alert(`${type === 'clockIn' ? '上班' : '下班'}打卡成功！`);
             } else {
-              updateDebug(`❌ 打卡失敗`, responseText);
+              updateDebug("❌ 打卡失敗", responseText);
+              alert("打卡失敗：" + responseText);
             }
           } catch (err) {
-              updateDebug("❌ 網路錯誤", err.message || JSON.stringify(err));
-              console.error("網路錯誤:", err);
+            updateDebug("❌ 發送資料失敗", err);
+            alert("發送打卡資料失敗，請稍後再試");
           }
         },
         (error) => {
-          updateDebug("❌ 取得 GPS 位置失敗", error.message);
+          updateDebug("❌ GPS 錯誤", error.message);
+          alert("無法取得 GPS 位置：" + error.message);
         }
       );
     }
 
     document.getElementById("clockInButton").addEventListener("click", () => {
-      getLocationAndClock('clockIn');
+      getLocationAndClock("clockIn");
     });
 
     document.getElementById("clockOutButton").addEventListener("click", () => {
-      getLocationAndClock('clockOut');
+      getLocationAndClock("clockOut");
     });
 
-    initLiff();
-    getUserInfo();
+    window.onload = () => {
+      initLiff();
+    };
   </script>
 </body>
 </html>
