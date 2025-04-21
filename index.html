@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>打卡系統</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
@@ -46,6 +46,15 @@
       margin-right: auto;
       word-break: break-word;
     }
+    #debugDetails {
+      font-size: 0.8rem;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: 1rem auto;
+    }
     img {
       border-radius: 10px;
       margin-top: 0.5rem;
@@ -55,7 +64,7 @@
 <body>
   <h1>打卡系統</h1>
   <div id="userInfo">
-    <p>請點擊下方按鈕以取得使用者資料與打卡功能</p>
+    <p>請點擊下方按鈕進行打卡</p>
   </div>
 
   <button id="clockInButton">上班打卡</button>
@@ -64,25 +73,34 @@
   <div id="debug">
     <strong>除錯資訊：</strong>
     <pre id="debugText">等待初始化...</pre>
+    <pre id="debugDetails">詳細錯誤資訊將顯示在此</pre>
   </div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxZHSKLRpKev47RE7NMCGhPAtwsp8_EWOoiZZjk4uU9cW22bbp6isKbJ8IWxm42b5oi/exec"; // 請替換為你的 GAS Web App URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxZHSKLRpKev47RE7NMCGhPAtwsp8_EWOoiZZjk4uU9cW22bbp6isKbJ8IWxm42b5oi/exec";
+
+    function updateDebug(status, details = "") {
+      const debugEl = document.getElementById("debugText");
+      const debugDetailsEl = document.getElementById("debugDetails");
+      const timestamp = new Date().toLocaleString();
+
+      debugEl.textContent = `【${timestamp}】 ${status}`;
+      debugDetailsEl.textContent = details ? `📌 詳細資訊：${details}` : "";
+    }
 
     async function initLiff() {
       try {
         await liff.init({ liffId: "2007299608-bXQzyQ6e" });
-        document.getElementById("debugText").textContent = "✅ LIFF 初始化成功";
+        updateDebug("✅ LIFF 初始化成功");
       } catch (error) {
-        document.getElementById("debugText").textContent = "❌ 初始化失敗：" + JSON.stringify(error);
+        updateDebug("❌ LIFF 初始化失敗", JSON.stringify(error));
         console.error("LIFF 初始化失敗", error);
       }
     }
 
     async function getUserInfo() {
-      const debugEl = document.getElementById("debugText");
       if (!liff.isLoggedIn()) {
-        debugEl.textContent = "🔄 尚未登入，嘗試登入中...";
+        updateDebug("🔄 尚未登入，嘗試登入中...");
         liff.login();
         return;
       }
@@ -91,91 +109,82 @@
         const profile = await liff.getProfile();
         const userId = liff.getDecodedIDToken()?.sub;
         const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
-        const infoHTML = `
+
+        document.getElementById("userInfo").innerHTML = `
           <p><strong>名字：</strong>${profile.displayName}</p>
           <img src="${profile.pictureUrl}" width="100" alt="頭像"/>
-          <p><strong>狀態：</strong>${profile.statusMessage || "（無）"}</p>
           <p><strong>使用者 ID：</strong>${userId}</p>
           <p><strong>Email：</strong>${email}</p>
         `;
-        document.getElementById("userInfo").innerHTML = infoHTML;
-        debugEl.textContent = "✅ 使用者資訊載入成功";
+        updateDebug("✅ 使用者資訊載入成功");
       } catch (err) {
-        debugEl.textContent = "❌ 取得資訊失敗：" + JSON.stringify(err);
+        updateDebug("❌ 取得使用者資訊失敗", JSON.stringify(err));
         console.error("getUserInfo error", err);
       }
     }
 
     async function getLocationAndClock(type) {
-      const debugEl = document.getElementById("debugText");
       if (!navigator.geolocation) {
-        debugEl.textContent = "❌ 這個瀏覽器不支援 GPS 定位功能";
+        updateDebug("❌ 這個瀏覽器不支援 GPS 定位功能");
         return;
       }
 
-      debugEl.textContent = "🔄 正在取得位置...";
+      updateDebug("🔄 正在取得 GPS 位置...");
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
+          updateDebug("✅ GPS 位置取得成功", `緯度: ${latitude}, 經度: ${longitude}`);
 
-          // 取得使用者資訊
           if (!liff.isLoggedIn()) {
             liff.login();
             return;
           }
 
           const userId = liff.getDecodedIDToken()?.sub;
-          const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
           const profile = await liff.getProfile();
 
           const data = {
             userId,
-            email,
             name: profile.displayName,
             picture: profile.pictureUrl,
             latitude,
             longitude,
-            clockType: type, // '上班' 或 '下班'
+            clockType: type,
           };
 
-          // 傳送資料到 GAS
           try {
             const response = await fetch(GAS_URL, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: {'Content-Type': 'application/json'},
               body: JSON.stringify(data),
             });
 
             if (response.ok) {
-              debugEl.textContent = `✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功！`;
+              updateDebug(`✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功！`);
             } else {
-              debugEl.textContent = `❌ 打卡失敗：${await response.text()}`;
+              updateDebug(`❌ 打卡失敗`, await response.text());
             }
           } catch (err) {
-            debugEl.textContent = "❌ 網路錯誤：" + JSON.stringify(err);
+            updateDebug("❌ 網路錯誤", JSON.stringify(err));
             console.error("Error:", err);
           }
         },
         (error) => {
-          debugEl.textContent = "❌ 取得位置失敗：" + error.message;
+          updateDebug("❌ 取得 GPS 位置失敗", error.message);
         }
       );
     }
 
     document.getElementById("clockInButton").addEventListener("click", () => {
-      getLocationAndClock('clockIn'); // 上班打卡
+      getLocationAndClock('clockIn');
     });
 
     document.getElementById("clockOutButton").addEventListener("click", () => {
-      getLocationAndClock('clockOut'); // 下班打卡
+      getLocationAndClock('clockOut');
     });
 
-    // 初始化 LIFF
     initLiff();
-    // 取得使用者資訊
     getUserInfo();
   </script>
 </body>
