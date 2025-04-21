@@ -36,21 +36,24 @@
       max-width: 400px;
       margin: 0 auto 2rem;
     }
-    #debug {
-      color: #888;
-      font-size: 0.9rem;
-      text-align: left;
+    #debug, #debugDetails {
       max-width: 400px;
-      margin: 0 auto;
+      margin: 1rem auto;
+      text-align: left;
+      white-space: pre-wrap;
       word-break: break-word;
     }
+    #debug {
+      font-size: 0.95rem;
+      color: #555;
+    }
     #debugDetails {
-      font-size: 0.8rem;
       background: #fff;
       padding: 1rem;
+      font-size: 0.85rem;
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin-top: 1rem;
+      color: #999;
     }
     img {
       border-radius: 10px;
@@ -60,6 +63,7 @@
 </head>
 <body>
   <h1>打卡系統</h1>
+
   <div id="userInfo">
     <p>請點擊下方按鈕進行打卡</p>
   </div>
@@ -69,37 +73,30 @@
 
   <div id="debug">
     <strong>除錯資訊：</strong>
-    <pre id="debugText">等待初始化...</pre>
-    <pre id="debugDetails">詳細錯誤資訊將顯示在此</pre>
+    <div id="debugText">等待初始化...</div>
   </div>
+  <div id="debugDetails"></div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwZXCPrgTUoQJ0VeGkECAirvHkVh67k2UkOCw2FvYawhqfvVFFtCugLUtjV8pr4wuXy/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwZXCPrgTUoQJ0VeGkECAirvHkVh67k2UkOCw2FvYawhqfvVFFtCugLUtjV8pr4wuXy/exec"; // <--- 請換成你的正式 URL
 
     function updateDebug(status, details = "") {
-      const debugEl = document.getElementById("debugText");
-      const debugDetailsEl = document.getElementById("debugDetails");
       const timestamp = new Date().toLocaleString();
-      debugEl.textContent = `【${timestamp}】 ${status}`;
-      debugDetailsEl.textContent = details ? `📌 詳細資訊：${JSON.stringify(details, null, 2)}` : "";
+      document.getElementById("debugText").textContent = `【${timestamp}】 ${status}`;
+      document.getElementById("debugDetails").textContent = details ? `📌 詳細資訊：\n${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}` : "";
     }
 
     async function initLiff() {
       try {
         await liff.init({ liffId: "2007299608-bXQzyQ6e" });
         updateDebug("✅ LIFF 初始化成功");
-
         if (!liff.isLoggedIn()) {
-          updateDebug("🔄 尚未登入，重新導向登入中...");
           liff.login();
-          return;
+        } else {
+          getUserInfo();
         }
-
-        await getUserInfo(); // 成功登入後才撈資料
       } catch (error) {
-        updateDebug("❌ LIFF 初始化失敗", error);
-        console.error("LIFF 初始化失敗", error);
-        alert("LIFF 初始化失敗，請重新開啟");
+        updateDebug("❌ LIFF 初始化失敗", error.message || JSON.stringify(error));
       }
     }
 
@@ -111,80 +108,61 @@
 
         document.getElementById("userInfo").innerHTML = `
           <p><strong>名字：</strong>${profile.displayName}</p>
-          <img src="${profile.pictureUrl}" width="100" alt="頭像"/>
-          <p><strong>使用者 ID：</strong>${userId}</p>
-          <p><strong>Email：</strong>${email}</p>
+          <img src="${profile.pictureUrl}" width="100" />        
         `;
 
         updateDebug("✅ 使用者資訊載入成功");
       } catch (err) {
-        updateDebug("❌ 取得使用者資訊失敗", err);
-        console.error("getUserInfo error", err);
-        alert("取得使用者資訊失敗，請重新嘗試");
+        updateDebug("❌ 取得使用者資訊失敗", err.message || JSON.stringify(err));
       }
     }
 
     async function getLocationAndClock(type) {
       if (!navigator.geolocation) {
-        updateDebug("❌ 這個瀏覽器不支援 GPS");
-        alert("您的瀏覽器不支援 GPS 功能");
+        updateDebug("❌ 這個瀏覽器不支援 GPS 功能");
         return;
       }
 
-      updateDebug("🔄 正在取得 GPS 位置...");
+      updateDebug("📍 正在取得 GPS 位置...");
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          updateDebug("✅ GPS 位置取得成功", { latitude, longitude });
 
-          if (!liff.isLoggedIn()) {
-            liff.login();
-            return;
-          }
-
-          const userId = liff.getDecodedIDToken()?.sub;
-          if (!userId) {
-            updateDebug("❌ 無法取得使用者 ID，請重新登入");
-            alert("使用者驗證失敗，請重新登入");
-            return;
-          }
-
-          const profile = await liff.getProfile();
-
-          const data = {
-            userId,
-            name: profile.displayName,
-            picture: profile.pictureUrl,
-            latitude,
-            longitude,
-            clockType: type,
-          };
+          updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`);
 
           try {
+            const userId = liff.getDecodedIDToken()?.sub;
+            const profile = await liff.getProfile();
+
+            const data = {
+              userId,
+              name: profile.displayName,
+              picture: profile.pictureUrl,
+              latitude,
+              longitude,
+              clockType: type,
+            };
+
             const response = await fetch(GAS_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(data),
             });
 
-            const responseText = await response.text();
+            const resultText = await response.text();
 
             if (response.ok) {
-              updateDebug(`✅ ${type === 'clockIn' ? '上班' : '下班'}打卡成功`, responseText);
-              alert(`${type === 'clockIn' ? '上班' : '下班'}打卡成功！`);
+              updateDebug(`✅ ${type === "clockIn" ? "上班" : "下班"}打卡成功`, resultText);
             } else {
-              updateDebug("❌ 打卡失敗", responseText);
-              alert("打卡失敗：" + responseText);
+              updateDebug("❌ 打卡失敗", resultText);
             }
           } catch (err) {
-            updateDebug("❌ 發送資料失敗", err);
-            alert("發送打卡資料失敗，請稍後再試");
+            updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err));
           }
         },
         (error) => {
-          updateDebug("❌ GPS 錯誤", error.message);
-          alert("無法取得 GPS 位置：" + error.message);
+          updateDebug("❌ 取得 GPS 位置失敗", error.message);
         }
       );
     }
@@ -197,9 +175,7 @@
       getLocationAndClock("clockOut");
     });
 
-    window.onload = () => {
-      initLiff();
-    };
+    initLiff();
   </script>
 </body>
 </html>
