@@ -1,79 +1,26 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LIFF 測試頁面</title>
-  <script src="https://static.line-scdn.net/liff/2.1/sdk.js"></script>
-  <script>
-    let liffId = '2007299608-zX6YG6OV';  // 請替換成你的 LIFF ID
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+        async function initLIFF() {
+            await liff.init({ liffId: "你的 LIFF ID" });
+        }
 
-    // 初始化 LIFF
-    function initLIFF() {
-      liff.init({ liffId: liffId })
-        .then(() => {
-          if (liff.isLoggedIn()) {
-            // 如果已經登入，顯示打卡按鈕
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('testButton').style.display = 'block';
-          } else {
-            // 如果未登入，顯示登入按鈕
-            liff.login();
-          }
-        })
-        .catch((err) => {
-          console.error('LIFF 初始化失敗', err);
-        });
-    }
+        function sendData() {
+            const userData = { name: "John Doe", age: 25 };
+            fetch("你的 GAS API 網址", {
+                method: "POST",
+                body: JSON.stringify(userData),
+                headers: { "Content-Type": "application/json" }
+            }).then(response => response.json())
+              .then(data => console.log("成功:", data));
+        }
 
-    // 發送打卡請求到 GAS
-    function testGAS() {
-      // 這是要發送的 JSON 資料
-      const postData = {
-        userId: liff.getContext().userId,
-        latitude: "25.0478", // 這裡可以替換為真實的 GPS 座標
-        longitude: "121.5319", // 這裡可以替換為真實的 GPS 座標
-        clockType: "checkin"
-      };
-
-      // 發送 POST 請求到 GAS Webhook
-      fetch('https://script.google.com/macros/s/AKfycbwnGw6kDaPt-SxzxV0c-3qMU9iPtpuzlqC8XJ92TK1XaL0UO7GYvL8IWiSmsgHgvuZq/exec', {  // 請替換成你的 GAS 部署 URL
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(postData)
-      })
-      .then(response => response.json())
-      .then(data => {
-        // 顯示後端回應的資料
-        document.getElementById('response').innerText = JSON.stringify(data, null, 2);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('response').innerText = '發生錯誤！';
-      });
-    }
-
-    // LIFF 初始化
-    window.onload = function () {
-      initLIFF();
-    };
-  </script>
+        window.onload = initLIFF;
+    </script>
 </head>
 <body>
-  <h1>LIFF 測試頁面</h1>
-
-  <!-- 未登入時顯示登入按鈕 -->
-  <div id="login" style="display:block;">
-    <p>請登入 LINE</p>
-  </div>
-
-  <!-- 登入後顯示發送請求按鈕 -->
-  <div id="testButton" style="display:none;">
-    <button onclick="testGAS()">發送打卡請求</button>
-  </div>
-
-  <pre id="response"></pre>  <!-- 顯示後端回應 -->
+    <button onclick="sendData()">提交資料</button>
 </body>
 </html>
