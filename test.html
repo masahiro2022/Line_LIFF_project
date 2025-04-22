@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GAS 測試頁面</title>
+  <script>
+    function testGAS() {
+      // 這是要發送的 JSON 資料
+      const postData = {
+        userId: "test_user",
+        latitude: "25.0478",
+        longitude: "121.5319",
+        clockType: "checkin"
+      };
+
+      // 發送 POST 請求到 GAS Webhook
+      fetch('https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec', {  // 請替換成你的 GAS 部署 URL
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(postData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        // 顯示後端回應的資料
+        document.getElementById('response').innerText = JSON.stringify(data, null, 2);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('response').innerText = '發生錯誤！';
+      });
+    }
+  </script>
+</head>
+<body>
+  <h1>測試 GAS 連通性</h1>
+  <button onclick="testGAS()">發送 POST 請求</button>
+  <pre id="response"></pre>
+</body>
+</html>
