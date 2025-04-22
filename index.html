@@ -162,20 +162,24 @@
               data: JSON.stringify(jsonData),
               contentType: "application/json",
               success: function (res) {
-                try {
-                  if (res && res.status && res.message) {
-                    showResult(res.message, res.status);
-                  } else {
-                    showResult("❌ 無法處理回應", "error");
-                  }
-                } catch (e) {
-                  showResult("❌ 解析回應錯誤", "error");
-                }
-              },
-              error: function (xhr, status, error) {
-                updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
-                showResult("❌ 打卡失敗", "error");
+            try {
+              if (typeof res === 'string') {
+                res = JSON.parse(res); // 轉回 JSON
               }
+
+              if (res && res.status && res.message) {
+                showResult(res.message, res.status);
+              } else {
+                showResult("❌ 回傳格式錯誤", "error");
+              }
+            } catch (e) {
+              showResult("❌ 回傳解析失敗：" + e.message, "error");
+            }
+          },
+          error: function (xhr, status, error) {
+            updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
+            showResult("❌ 打卡失敗", "error");
+          }
             });
 
           } catch (err) {
