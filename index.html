@@ -122,7 +122,7 @@
       try {
         const profile = await liff.getProfile();
         const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
-        document.getElementById("userInfo").innerHTML = `
+        document.getElementById("userInfo").innerHTML = ` 
           <p><strong>名字：</strong>${profile.displayName}</p>
           <img src="${profile.pictureUrl}" width="100" />
         `;
@@ -148,6 +148,7 @@
           try {
             const profile = await liff.getProfile();
             const userId = liff.getDecodedIDToken()?.sub;
+
             const formData = new FormData();
             formData.append("userId", userId);
             formData.append("name", profile.displayName);
@@ -155,6 +156,7 @@
             formData.append("longitude", longitude);
             formData.append("clockType", type);
 
+            // Ajax 呼叫後端，傳送 FormData 資料
             $.ajax({
                url: GAS_URL,
                method: "POST",
