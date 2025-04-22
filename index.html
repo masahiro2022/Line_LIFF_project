@@ -133,97 +133,86 @@
     }
 
     async function getLocationAndClock(type) {
-         const inBtn = document.getElementById("clockInButton");
-         const outBtn = document.getElementById("clockOutButton");
+      const inBtn = document.getElementById("clockInButton");
+      const outBtn = document.getElementById("clockOutButton");
+      const inText = inBtn.innerText;
+      const outText = outBtn.innerText;
 
-         // 記錄原始文字
-         const inText = inBtn.innerText;
-         const outText = outBtn.innerText;
+      // 立即變更按鈕文字與狀態
+      if (type === "clockIn") {
+        inBtn.disabled = true;
+        inBtn.innerText = "打卡中...";
+      } else {
+        outBtn.disabled = true;
+        outBtn.innerText = "打卡中...";
+      }
 
-         // 顯示處理中文字
-         // 使用 setTimeout 強制觸發畫面更新
-         setTimeout(() => {
-           if (type === "clockIn") {
-             inBtn.disabled = true;
-             inBtn.innerText = "打卡中...";
-           } else {
-             outBtn.disabled = true;
-             outBtn.innerText = "打卡中...";
-           }
-         }, 0);
+      // 等待畫面更新
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-         if (!navigator.geolocation) {
-           updateDebug("❌ 這個瀏覽器不支援 GPS 功能", "", "error");
-           inBtn.disabled = false;
-           outBtn.disabled = false;
-           inBtn.innerText = inText;
-           outBtn.innerText = outText;
-           return;
-         }
+      if (!navigator.geolocation) {
+        updateDebug("❌ 這個瀏覽器不支援 GPS 功能", "", "error");
+        resetButtons();
+        return;
+      }
 
-         updateDebug("📍 正在取得 GPS 位置...", "", "info");
+      updateDebug("📍 正在取得 GPS 位置...", "", "info");
 
-         navigator.geolocation.getCurrentPosition(
-           async (position) => {
-             const { latitude, longitude } = position.coords;
-             updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`, "success");
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`, "success");
 
-             try {
-               const profile = await liff.getProfile();
-               const userId = liff.getDecodedIDToken()?.sub;
+          try {
+            const profile = await liff.getProfile();
+            const userId = liff.getDecodedIDToken()?.sub;
 
-               const formData = new FormData();
-               formData.append("userId", userId);
-               formData.append("name", profile.displayName);
-               formData.append("latitude", latitude);
-               formData.append("longitude", longitude);
-               formData.append("clockType", type);
+            const formData = new FormData();
+            formData.append("userId", userId);
+            formData.append("name", profile.displayName);
+            formData.append("latitude", latitude);
+            formData.append("longitude", longitude);
+            formData.append("clockType", type);
 
-               $.ajax({
-                 url: GAS_URL,
-                 method: "POST",
-                 data: formData,
-                 processData: false,
-                 contentType: false,
-                 success: function (res) {
-                   try {
-                     if (res && res.status && res.message) {
-                       showResult(res.message, res.status);
-                     } else {
-                       showResult("❌ 無法處理回應", "error");
-                     }
-                   } catch (e) {
-                     showResult("❌ 解析回應錯誤", "error");
-                   }
-                   resetButtons();
-                 },
-                 error: function (xhr, status, error) {
-                   updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
-                   showResult("❌ 打卡失敗", "error");
-                   resetButtons();
-                 }
-               });
+            $.ajax({
+              url: GAS_URL,
+              method: "POST",
+              data: formData,
+              processData: false,
+              contentType: false,
+              success: function (res) {
+                if (res && res.status && res.message) {
+                  showResult(res.message, res.status);
+                } else {
+                  showResult("❌ 無法處理回應", "error");
+                }
+                resetButtons();
+              },
+              error: function (xhr, status, error) {
+                updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
+                showResult("❌ 打卡失敗", "error");
+                resetButtons();
+              }
+            });
 
-             } catch (err) {
-               updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
-               resetButtons();
-             }
-           },
-           (error) => {
-             updateDebug("❌ 取得 GPS 位置失敗", error.message, "error");
-             resetButtons();
-           }
-         );
+          } catch (err) {
+            updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
+            resetButtons();
+          }
+        },
+        (error) => {
+          updateDebug("❌ 取得 GPS 位置失敗", error.message, "error");
+          resetButtons();
+        }
+      );
 
-         // 重置按鈕狀態
-         function resetButtons() {
-           inBtn.disabled = false;
-           outBtn.disabled = false;
-           inBtn.innerText = inText;
-           outBtn.innerText = outText;
-         }
-       }
-
+      function resetButtons() {
+        inBtn.disabled = false;
+        outBtn.disabled = false;
+        inBtn.innerText = inText;
+        outBtn.innerText = outText;
+      }
+    }
 
     document.getElementById("clockInButton").addEventListener("click", () => {
       getLocationAndClock("clockIn");
