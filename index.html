@@ -121,7 +121,6 @@
     async function getUserInfo() {
       try {
         const profile = await liff.getProfile();
-        const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
         document.getElementById("userInfo").innerHTML = ` 
           <p><strong>名字：</strong>${profile.displayName}</p>
           <img src="${profile.pictureUrl}" width="100" />
@@ -149,39 +148,35 @@
             const profile = await liff.getProfile();
             const userId = liff.getDecodedIDToken()?.sub;
 
-            const formData = new FormData();
-            formData.append("userId", userId);
-            formData.append("name", profile.displayName);
-            formData.append("latitude", latitude);
-            formData.append("longitude", longitude);
-            formData.append("clockType", type);
+            const jsonData = {
+              userId,
+              name: profile.displayName,
+              latitude,
+              longitude,
+              clockType: type
+            };
 
-            // Ajax 呼叫後端，傳送 FormData 資料
             $.ajax({
-                url: GAS_URL,
-                method: "POST",
-                data: formData,
-                processData: false,
-                contentType: false,
-               success: function(res) {
-             try {
-                 // 檢查返回的結果是否包含預期的 status 和 message
-                 if (res && res.status && res.message) {
-                     showResult(res.message, res.status);
-                 } else {
-                     // 如果資料結構不正確，顯示錯誤
-                     showResult("❌ 無法處理回應", "error");
-                 }
+              url: GAS_URL,
+              method: "POST",
+              data: JSON.stringify(jsonData),
+              contentType: "application/json",
+              success: function (res) {
+                try {
+                  if (res && res.status && res.message) {
+                    showResult(res.message, res.status);
+                  } else {
+                    showResult("❌ 無法處理回應", "error");
+                  }
                 } catch (e) {
-                 // 捕獲解析錯誤
-                 showResult("❌ 解析回應錯誤", "error");
+                  showResult("❌ 解析回應錯誤", "error");
                 }
-               },
-                error: function (xhr, status, error) {              
-                   updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
-                   showResult("❌ 打卡失敗", "error");
-                }
-             });
+              },
+              error: function (xhr, status, error) {
+                updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
+                showResult("❌ 打卡失敗", "error");
+              }
+            });
 
           } catch (err) {
             updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
