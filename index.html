@@ -166,8 +166,7 @@
                 success: function(res) {
                 showResult(res.message, res.status);
                 },
-                error: function (xhr, status, error) {
-                   console.error("AJAX 錯誤: ", xhr.responseText);
+                error: function (xhr, status, error) {              
                    updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
                    showResult("❌ 打卡失敗", "error");
                 }
