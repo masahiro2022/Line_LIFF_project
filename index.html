@@ -88,18 +88,17 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwdiyrIR7y_kqND9v25wl9hhuTmy8F4DbtpcW1xGEsE9JY4fFDBuyil4cYifxBLjcTK/exec";
 
     function showResult(message, status) {
-          const type = status === "success" ? "success" : "error";
-          updateDebug(`📌 ${message}`, "", type);
+      const type = status === "success" ? "success" : "error";
+      updateDebug(`📌 ${message}`, "", type);
     }
-    
+
     function updateDebug(status, details = "", type = "info") {
       const timestamp = new Date().toLocaleTimeString();
       const log = document.createElement("div");
       log.className = `log-entry ${type}`;
-      log.innerHTML = `
+      log.innerHTML = `  
         <div class="timestamp">[${timestamp}] ${status}</div>
-        ${details ? `<div style="margin-top: 0.3rem; color:#666;">${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}</div>` : ""}
-      `;
+        ${details ? `<div style="margin-top: 0.3rem; color:#666;">${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}</div>` : ""}`;
       const debugPanel = document.getElementById("debug");
       debugPanel.appendChild(log);
       debugPanel.scrollTop = debugPanel.scrollHeight;
@@ -149,18 +148,19 @@
           try {
             const profile = await liff.getProfile();
             const userId = liff.getDecodedIDToken()?.sub;
-            const data = {
-               userId: userId,
-               name: profile.displayName,
-               latitude: latitude,
-               longitude: longitude,
-               clockType: type
-             };
+            const formData = new FormData();
+            formData.append("userId", userId);
+            formData.append("name", profile.displayName);
+            formData.append("latitude", latitude);
+            formData.append("longitude", longitude);
+            formData.append("clockType", type);
+
             $.ajax({
                url: GAS_URL,
                method: "POST",
-               contentType: "application/json", // ✅ 指定 JSON 傳送格式
-               data: JSON.stringify(data),      // ✅ 傳送 JSON 字串
+               data: formData,   // 使用 FormData 來發送表單資料
+               processData: false,  // 防止 jQuery 處理數據
+               contentType: false,  // 設置為 false，避免 jQuery 自動設置 Content-Type 標頭
                success: function(res) {
                  showResult(res.message, res.status);
                },
@@ -168,8 +168,8 @@
                   console.error("❌ 打卡失敗", err);
                   updateDebug("❌ AJAX 錯誤", JSON.stringify(err), "error");
                   showResult("❌ 打卡失敗", "error");
-                 }
-               });
+               }
+            });
 
           } catch (err) {
             updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
