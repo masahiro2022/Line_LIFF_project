@@ -1,190 +1,154 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>打卡系統</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://static.line-scdn.net/liff/2.1/sdk.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body {
-      font-family: "Segoe UI", sans-serif;
-      background-color: #f0f4f8;
-      margin: 0;
-      padding: 2rem;
+      font-family: Arial, sans-serif;
       text-align: center;
-      color: #333;
+      margin-top: 50px;
     }
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 1rem;
-    }
-    button {
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-      background-color: #00c300;
+    .btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #007BFF;
       color: white;
       border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 0.5rem;
+      border-radius: 5px;
+      margin: 10px;
     }
     #userInfo {
-      background-color: white;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 400px;
-      margin: 0 auto 2rem;
+      margin-top: 20px;
+      font-size: 18px;
+      color: #333;
     }
-    #debug {
-      max-width: 600px;
-      margin: 1rem auto;
-      text-align: left;
-      font-size: 0.9rem;
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      padding: 1rem;
-      white-space: pre-wrap;
-      overflow-y: auto;
-      max-height: 300px;
-    }
-    .log-entry {
-      margin-bottom: 0.75rem;
-      border-left: 4px solid #ccc;
-      padding-left: 0.75rem;
-    }
-    .log-entry.success { border-color: #2ecc71; }
-    .log-entry.error { border-color: #e74c3c; }
-    .log-entry.info  { border-color: #3498db; }
-    .timestamp {
+    #debugInfo {
+      margin-top: 20px;
+      font-size: 14px;
       color: #888;
-      font-size: 0.8rem;
-    }
-    img {
-      border-radius: 10px;
-      margin-top: 0.5rem;
     }
   </style>
 </head>
 <body>
-  <h1>打卡系統</h1>
+
+  <h1>歡迎來到打卡系統</h1>
+  <button class="btn" id="clockInBtn">上班打卡</button>
+  <button class="btn" id="clockOutBtn">下班打卡</button>
 
   <div id="userInfo">
-    <p>請點擊下方按鈕進行打卡</p>
+    <h3>使用者資訊</h3>
+    <p><strong>姓名：</strong><span id="userName">未取得</span></p>
+    <p><strong>個人照片：</strong><img id="userPicture" src="" alt="使用者圖片" width="50" height="50"></p>
   </div>
 
-  <button id="clockInButton">上班打卡</button>
-  <button id="clockOutButton">下班打卡</button>
-
-  <div id="debug">
-    <div class="log-entry info">
-      <div class="timestamp">頁面載入中...</div>
-    </div>
+  <div id="debugInfo">
+    <h3>調試訊息</h3>
+    <pre id="debugOutput"></pre>
   </div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwIfM7lFFuXX7Btqduoi3m_lmPtbM_2onIMvtlPEHRSe8MM4PieqDJO8k7P0AImyYtc/exec"; // 替換為你的網址
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwP2rbCXSiVVeUKLkbOUzW8FRCtYe-06WLFz8JaJeHxS42_DCH9hYpRHOy6OZii4YbG/exec";  // 填入你的 GAS URL
 
-    function updateDebug(status, details = "", type = "info") {
-      const timestamp = new Date().toLocaleTimeString();
-      const log = document.createElement("div");
-      log.className = `log-entry ${type}`;
-      log.innerHTML = `
-        <div class="timestamp">[${timestamp}] ${status}</div>
-        ${details ? `<div style="margin-top: 0.3rem; color:#666;">${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}</div>` : ""}
-      `;
-      const debugPanel = document.getElementById("debug");
-      debugPanel.appendChild(log);
-      debugPanel.scrollTop = debugPanel.scrollHeight;
-    }
+    // 等待LIFF初始化
+    window.onload = function () {
+      liff.init({ liffId: "2007299608-bXQzyQ6e" }, () => {
+        console.log("LIFF Initialized");
+      }, (err) => {
+        console.error("LIFF initialization failed", err);
+        document.getElementById("debugOutput").textContent = "LIFF 初始化失敗: " + err.message;
+      });
+    };
 
-    async function initLiff() {
-      try {
-        await liff.init({ liffId: "2007299608-bXQzyQ6e" });
-        updateDebug("✅ LIFF 初始化成功", "", "success");
-        if (!liff.isLoggedIn()) {
-          liff.login();
-        } else {
-          getUserInfo();
-        }
-      } catch (error) {
-        updateDebug("❌ LIFF 初始化失敗", error.message || JSON.stringify(error), "error");
-      }
-    }
-
+    // 獲取使用者資訊並顯示
     async function getUserInfo() {
       try {
         const profile = await liff.getProfile();
-        const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
-        document.getElementById("userInfo").innerHTML = `
-          <p><strong>名字：</strong>${profile.displayName}</p>
-          <img src="${profile.pictureUrl}" width="100" />
-        `;
-        updateDebug("✅ 使用者資訊載入成功", "", "success");
+        const userId = liff.getDecodedIDToken()?.sub;
+
+        document.getElementById("userName").textContent = profile.displayName;
+        document.getElementById("userPicture").src = profile.pictureUrl;
+
+        return {
+          userId: userId,
+          name: profile.displayName,
+          picture: profile.pictureUrl
+        };
       } catch (err) {
-        updateDebug("❌ 取得使用者資訊失敗", err.message || JSON.stringify(err), "error");
+        document.getElementById("debugOutput").textContent = "獲取使用者資訊失敗: " + err.message;
       }
     }
 
-    async function getLocationAndClock(type) {
+    // 獲取位置並進行打卡
+    async function getLocationAndClock(clockType) {
       if (!navigator.geolocation) {
-        updateDebug("❌ 這個瀏覽器不支援 GPS 功能", "", "error");
+        alert("❌ 這個瀏覽器不支援 GPS 功能");
         return;
       }
 
-      updateDebug("📍 正在取得 GPS 位置...", "", "info");
+      alert("📍 正在取得 GPS 位置...");
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`, "success");
+          alert(`✅ GPS 位置取得成功\n緯度：${latitude}\n經度：${longitude}`);
 
           try {
-            const profile = await liff.getProfile();
-            const userId = liff.getDecodedIDToken()?.sub;
+            const userInfo = await getUserInfo();
 
             const data = {
-              userId,
-              name: profile.displayName,
-              picture: profile.pictureUrl,
-              latitude,
-              longitude,
-              clockType: type,
+              userId: userInfo.userId,
+              name: userInfo.name,
+              picture: userInfo.picture,
+              latitude: latitude,
+              longitude: longitude,
+              clockType: clockType
             };
 
+            // 將資料轉換為表單格式
+            const formData = $.param(data);
+
+            // 發送資料到 GAS
             $.ajax({
               url: GAS_URL,
               method: "POST",
-              contentType: "application/json",
-              data: JSON.stringify(data),
+              contentType: "application/x-www-form-urlencoded",  // 表單格式
+              data: formData,
               success: function (res) {
-                updateDebug(`✅ ${type === "clockIn" ? "上班" : "下班"}打卡成功`, res, "success");
+                alert(`${clockType === "clockIn" ? "上班" : "下班"}打卡成功: ${res.message}`);
+                document.getElementById("debugOutput").textContent = `✅ 打卡成功：${res.message}`;
               },
               error: function (xhr, status, err) {
-                updateDebug("❌ 打卡失敗", `狀態：${status}\n錯誤：${err}`, "error");
+                alert(`❌ 打卡失敗\n狀態：${status}\n錯誤：${err}`);
+                document.getElementById("debugOutput").textContent = `❌ 打卡失敗: ${err}`;
               }
             });
           } catch (err) {
-            updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
+            alert(`❌ 發送資料失敗: ${err.message}`);
+            document.getElementById("debugOutput").textContent = "發送資料失敗: " + err.message;
           }
         },
         (error) => {
-          updateDebug("❌ 取得 GPS 位置失敗", error.message, "error");
+          alert(`❌ 取得 GPS 位置失敗: ${error.message}`);
+          document.getElementById("debugOutput").textContent = "取得 GPS 位置失敗: " + error.message;
         }
       );
     }
 
-    document.getElementById("clockInButton").addEventListener("click", () => {
+    // 上班打卡
+    document.getElementById("clockInBtn").addEventListener("click", () => {
       getLocationAndClock("clockIn");
     });
 
-    document.getElementById("clockOutButton").addEventListener("click", () => {
+    // 下班打卡
+    document.getElementById("clockOutBtn").addEventListener("click", () => {
       getLocationAndClock("clockOut");
     });
-
-    initLiff();
   </script>
+
 </body>
 </html>
