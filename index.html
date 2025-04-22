@@ -148,14 +148,9 @@
             $.ajax({
                url: GAS_URL,
                method: "POST",
-               data: {
-                 userId: userId,                
-                 latitude: latitude,
-                 longitude: longitude,
-                 clockType: type
-               },
-               success: function (res) {
-                 console.log("✅ 打卡成功", res);
+               contentType: "application/json", // ✅ 指定 JSON 傳送格式
+               data: JSON.stringify(data),      // ✅ 傳送 JSON 字串
+               success: function(res) {
                  showResult(res.message, res.status);
                },
                error: function (err) {
