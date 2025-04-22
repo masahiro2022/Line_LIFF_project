@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>打卡系統</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -90,14 +91,13 @@
       const timestamp = new Date().toLocaleTimeString();
       const log = document.createElement("div");
       log.className = `log-entry ${type}`;
-
       log.innerHTML = `
         <div class="timestamp">[${timestamp}] ${status}</div>
         ${details ? `<div style="margin-top: 0.3rem; color:#666;">${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}</div>` : ""}
       `;
-
-      document.getElementById("debug").appendChild(log);
-      document.getElementById("debug").scrollTop = document.getElementById("debug").scrollHeight;
+      const debugPanel = document.getElementById("debug");
+      debugPanel.appendChild(log);
+      debugPanel.scrollTop = debugPanel.scrollHeight;
     }
 
     async function initLiff() {
@@ -117,14 +117,11 @@
     async function getUserInfo() {
       try {
         const profile = await liff.getProfile();
-        const userId = liff.getDecodedIDToken()?.sub;
         const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
-
         document.getElementById("userInfo").innerHTML = `
           <p><strong>名字：</strong>${profile.displayName}</p>
           <img src="${profile.pictureUrl}" width="100" />
         `;
-
         updateDebug("✅ 使用者資訊載入成功", "", "success");
       } catch (err) {
         updateDebug("❌ 取得使用者資訊失敗", err.message || JSON.stringify(err), "error");
@@ -142,12 +139,11 @@
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-
           updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`, "success");
 
           try {
-            const userId = liff.getDecodedIDToken()?.sub;
             const profile = await liff.getProfile();
+            const userId = liff.getDecodedIDToken()?.sub;
 
             const data = {
               userId,
@@ -158,19 +154,18 @@
               clockType: type,
             };
 
-            const response = await fetch(GAS_URL, {
+            $.ajax({
+              url: GAS_URL,
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(data),
+              contentType: "application/json",
+              data: JSON.stringify(data),
+              success: function (res) {
+                updateDebug(`✅ ${type === "clockIn" ? "上班" : "下班"}打卡成功`, res, "success");
+              },
+              error: function (xhr, status, err) {
+                updateDebug("❌ 打卡失敗", `狀態：${status}\n錯誤：${err}`, "error");
+              }
             });
-
-            const resultText = await response.text();
-
-            if (response.ok) {
-              updateDebug(`✅ ${type === "clockIn" ? "上班" : "下班"}打卡成功`, resultText, "success");
-            } else {
-              updateDebug("❌ 打卡失敗", resultText, "error");
-            }
           } catch (err) {
             updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
           }
