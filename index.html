@@ -158,20 +158,20 @@
 
             // Ajax 呼叫後端，傳送 FormData 資料
             $.ajax({
-               url: GAS_URL,
-               method: "POST",
-               data: formData,   // 使用 FormData 來發送表單資料
-               processData: false,  // 防止 jQuery 處理數據
-               contentType: false,  // 設置為 false，避免 jQuery 自動設置 Content-Type 標頭
-               success: function(res) {
-                 showResult(res.message, res.status);
-               },
-               error: function (err) {
-                  console.error("❌ 打卡失敗", err);
-                  updateDebug("❌ AJAX 錯誤", JSON.stringify(err), "error");
-                  showResult("❌ 打卡失敗", "error");
-               }
-            });
+                url: GAS_URL,
+                method: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                showResult(res.message, res.status);
+                },
+                error: function (xhr, status, error) {
+                   console.error("AJAX 錯誤: ", xhr.responseText);
+                   updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
+                   showResult("❌ 打卡失敗", "error");
+                }
+             });
 
           } catch (err) {
             updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
