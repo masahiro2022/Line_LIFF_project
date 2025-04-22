@@ -53,16 +53,20 @@
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwP2rbCXSiVVeUKLkbOUzW8FRCtYe-06WLFz8JaJeHxS42_DCH9hYpRHOy6OZii4YbG/exec";  // 填入你的 GAS URL
-
+    const YOUR_LIFF_ID = "2007299608-bXQzyQ6e";
     // 等待LIFF初始化
     window.onload = function () {
-      liff.init({ liffId: "2007299608-bXQzyQ6e" }, () => {
-        console.log("LIFF Initialized");
-      }, (err) => {
-        console.error("LIFF initialization failed", err);
-        document.getElementById("debugOutput").textContent = "LIFF 初始化失敗: " + err.message;
-      });
-    };
+  liff.init({ liffId: YOUR_LIFF_ID }, async () => {
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+    await getUserInfo();
+  }, (err) => {
+    document.getElementById("debugOutput").textContent = "LIFF 初始化失敗: " + err.message;
+  });
+};
+
 
     // 獲取使用者資訊並顯示
     async function getUserInfo() {
