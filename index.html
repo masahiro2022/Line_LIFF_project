@@ -141,13 +141,16 @@
          const outText = outBtn.innerText;
 
          // 顯示處理中文字
-         if (type === "clockIn") {
-           inBtn.disabled = true;
-           inBtn.innerText = "打卡中...";
-         } else {
-           outBtn.disabled = true;
-           outBtn.innerText = "打卡中...";
-         }
+         // 使用 setTimeout 強制觸發畫面更新
+         setTimeout(() => {
+           if (type === "clockIn") {
+             inBtn.disabled = true;
+             inBtn.innerText = "打卡中...";
+           } else {
+             outBtn.disabled = true;
+             outBtn.innerText = "打卡中...";
+           }
+         }, 0);
 
          if (!navigator.geolocation) {
            updateDebug("❌ 這個瀏覽器不支援 GPS 功能", "", "error");
