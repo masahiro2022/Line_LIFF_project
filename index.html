@@ -145,20 +145,20 @@
             const profile = await liff.getProfile();
             const userId = liff.getDecodedIDToken()?.sub;
 
-            const data = {
-              userId,
-              name: profile.displayName,
-              picture: profile.pictureUrl,
-              latitude,
-              longitude,
-              clockType: type,
-            };
+            const formData = new FormData();
+            formData.append("userId", userId);
+            formData.append("name", profile.displayName);
+            formData.append("picture", profile.pictureUrl);
+            formData.append("latitude", latitude);
+            formData.append("longitude", longitude);
+            formData.append("clockType", type);
 
             $.ajax({
               url: GAS_URL,
               method: "POST",
-              contentType: "application/json",
-              data: JSON.stringify(data),
+              data: formData,
+              processData: false,
+              contentType: false,
               success: function (res) {
                 updateDebug(`✅ ${type === "clockIn" ? "上班" : "下班"}打卡成功`, res, "success");
               },
