@@ -144,7 +144,13 @@
           try {
             const profile = await liff.getProfile();
             const userId = liff.getDecodedIDToken()?.sub;
-            
+            const data = {
+               userId: userId,
+               name: profile.displayName,
+               latitude: latitude,
+               longitude: longitude,
+               clockType: type
+             };
             $.ajax({
                url: GAS_URL,
                method: "POST",
