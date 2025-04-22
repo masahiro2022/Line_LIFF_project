@@ -87,6 +87,11 @@
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyEwPFTvdaVSx0yr40qyyBEiAiM9ckeDH3wn4X-KH1IaXQvX2tJp7DBt-hDFkyU1QCP/exec";
 
+    function showResult(message, status) {
+          const type = status === "success" ? "success" : "error";
+          updateDebug(`📌 ${message}`, "", type);
+    }
+    
     function updateDebug(status, details = "", type = "info") {
       const timestamp = new Date().toLocaleTimeString();
       const log = document.createElement("div");
