@@ -163,9 +163,20 @@
                 data: formData,
                 processData: false,
                 contentType: false,
-                success: function(res) {
-                showResult(res.message, res.status);
-                },
+               success: function(res) {
+             try {
+                 // 檢查返回的結果是否包含預期的 status 和 message
+                 if (res && res.status && res.message) {
+                     showResult(res.message, res.status);
+                 } else {
+                     // 如果資料結構不正確，顯示錯誤
+                     showResult("❌ 無法處理回應", "error");
+                 }
+                } catch (e) {
+                 // 捕獲解析錯誤
+                 showResult("❌ 解析回應錯誤", "error");
+                }
+               },
                 error: function (xhr, status, error) {              
                    updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
                    showResult("❌ 打卡失敗", "error");
