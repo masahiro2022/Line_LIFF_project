@@ -144,24 +144,16 @@
           try {
             const profile = await liff.getProfile();
             const userId = liff.getDecodedIDToken()?.sub;
-
-            const formData = new FormData();
-            formData.append("userId", userId);
-            formData.append("name", profile.displayName);
-            formData.append("picture", profile.pictureUrl);
-            formData.append("latitude", latitude);
-            formData.append("longitude", longitude);
-            formData.append("clockType", type);
-
+            
             $.ajax({
                url: GAS_URL,
                method: "POST",
                data: {
                  userId: userId,
-                 name: name,
+                 name: profile.displayName,
                  latitude: latitude,
                  longitude: longitude,
-                 clockType: clockType
+                 clockType: type
                },
                success: function (res) {
                  console.log("✅ 打卡成功", res);
