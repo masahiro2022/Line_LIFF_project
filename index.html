@@ -137,13 +137,13 @@
       const buttons = {
         clockIn: document.getElementById("clockInButton"),
         clockOut: document.getElementById("clockOutButton"),
-        delegate: document.getElementById("delegatedClockButton")
+        delegated: document.getElementById("delegatedClockButton")
       };
 
       const originalTexts = {
         clockIn: buttons.clockIn.innerText,
         clockOut: buttons.clockOut.innerText,
-        delegate: buttons.delegated.innerText
+        delegated: buttons.delegated.innerText
       };
 
       buttons[type].disabled = true;
@@ -217,7 +217,7 @@
 
     document.getElementById("clockInButton").addEventListener("click", () => getLocationAndClock("clockIn"));
     document.getElementById("clockOutButton").addEventListener("click", () => getLocationAndClock("clockOut"));
-    document.getElementById("delegatedClockButton").addEventListener("click", () => getLocationAndClock("delegate"));
+    document.getElementById("delegatedClockButton").addEventListener("click", () => getLocationAndClock("delegated"));
 
     initLiff();
   </script>
