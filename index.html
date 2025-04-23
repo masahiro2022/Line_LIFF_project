@@ -1,228 +1,129 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>打卡系統</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      background-color: #f0f4f8;
-      margin: 0;
-      padding: 2rem;
-      text-align: center;
-      color: #333;
-    }
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 1rem;
-    }
     button {
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-      background-color: #00c300;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 0.5rem;
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 18px;
     }
-    #userInfo {
-      background-color: white;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 400px;
-      margin: 0 auto 2rem;
+    #result, #debug {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
     }
-    #debug {
-      max-width: 600px;
-      margin: 1rem auto;
-      text-align: left;
-      font-size: 0.9rem;
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      padding: 1rem;
-      white-space: pre-wrap;
-      overflow-y: auto;
-      max-height: 300px;
-    }
-    .log-entry {
-      margin-bottom: 0.75rem;
-      border-left: 4px solid #ccc;
-      padding-left: 0.75rem;
-    }
-    .log-entry.success { border-color: #2ecc71; }
-    .log-entry.error { border-color: #e74c3c; }
-    .log-entry.info  { border-color: #3498db; }
-    .timestamp {
-      color: #888;
-      font-size: 0.8rem;
-    }
-    img {
-      border-radius: 10px;
-      margin-top: 0.5rem;
-    }
+    #result.success { background: #d4edda; color: #155724; }
+    #result.error   { background: #f8d7da; color: #721c24; }
+    #result.info    { background: #d1ecf1; color: #0c5460; }
+    #debug          { font-size: 14px; color: #666; }
   </style>
 </head>
 <body>
-  <h1>打卡系統</h1>
-
-  <div id="userInfo">
-    <p>請點擊下方按鈕進行打卡</p>
-  </div>
-
+  <h1>員工打卡系統</h1>
   <button id="clockInButton">上班打卡</button>
   <button id="clockOutButton">下班打卡</button>
+  <button id="delegatedClockInButton">委派出勤</button>
 
-  <div id="debug">
-    <div class="log-entry info">
-      <div class="timestamp">頁面載入中...</div>
-    </div>
-  </div>
+  <div id="result"></div>
+  <div id="debug"></div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyUVWXWGLVUFuLwEefD__YwZki11DkUvCX2gSx4vZ0O4XB50hcG4u2QEo1HtEm-yQqU/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwW3KSHDxZbQu4DRlQmCKL6Ezc6OL-jJEmrX9l9ZZ6qHX7F8Xoi1IbGFYtr1ztm-q50/exec";
 
-    function showResult(message, status) {
-      const type = status === "success" ? "success" : "error";
-      updateDebug(`📌 ${message}`, "", type);
-    }
-
-    function updateDebug(status, details = "", type = "info") {
-      const timestamp = new Date().toLocaleTimeString();
-      const log = document.createElement("div");
-      log.className = `log-entry ${type}`;
-      log.innerHTML = `  
-        <div class="timestamp">[${timestamp}] ${status}</div>
-        ${details ? `<div style="margin-top: 0.3rem; color:#666;">${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}</div>` : ""}`;
-      const debugPanel = document.getElementById("debug");
-      debugPanel.appendChild(log);
-      debugPanel.scrollTop = debugPanel.scrollHeight;
-    }
-
-    async function initLiff() {
+    async function initializeLIFF() {
       try {
         await liff.init({ liffId: "2007299608-bXQzyQ6e" });
-        updateDebug("✅ LIFF 初始化成功", "", "success");
         if (!liff.isLoggedIn()) {
           liff.login();
-        } else {
-          getUserInfo();
         }
-      } catch (error) {
-        updateDebug("❌ LIFF 初始化失敗", error.message || JSON.stringify(error), "error");
-      }
-    }
-
-    async function getUserInfo() {
-      try {
-        const profile = await liff.getProfile();
-        const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
-        document.getElementById("userInfo").innerHTML = ` 
-          <p><strong>名字：</strong>${profile.displayName}</p>
-          <img src="${profile.pictureUrl}" width="100" />
-        `;
-        updateDebug("✅ 使用者資訊載入成功", "", "success");
       } catch (err) {
-        updateDebug("❌ 取得使用者資訊失敗", err.message || JSON.stringify(err), "error");
+        updateDebug("❌ LIFF 初始化失敗", err.message || err.toString(), "error");
       }
     }
 
-    async function getLocationAndClock(type) {
-      const inBtn = document.getElementById("clockInButton");
-      const outBtn = document.getElementById("clockOutButton");
-      const inText = inBtn.innerText;
-      const outText = outBtn.innerText;
+    function showResult(message, status = "info") {
+      const result = document.getElementById("result");
+      result.innerText = message;
+      result.className = `result ${status}`;
+    }
 
-      // 立即變更按鈕文字與狀態
-      if (type === "clockIn") {
-        inBtn.disabled = true;
-        inBtn.innerText = "打卡中...";
-      } else {
-        outBtn.disabled = true;
-        outBtn.innerText = "打卡中...";
-      }
+    function updateDebug(title, msg, status = "info") {
+      const debug = document.getElementById("debug");
+      debug.innerHTML = `<strong>${title}</strong><br>${msg}`;
+    }
 
-      // 等待畫面更新
-      await new Promise(resolve => setTimeout(resolve, 50));
+    async function clockAction(clockType) {
+      const btnIdMap = {
+        in: "clockInButton",
+        out: "clockOutButton",
+        delegated: "delegatedClockInButton"
+      };
+      const btn = document.getElementById(btnIdMap[clockType]);
+      const originalText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = "打卡中...";
 
-      if (!navigator.geolocation) {
-        updateDebug("❌ 這個瀏覽器不支援 GPS 功能", "", "error");
-        resetButtons();
-        return;
-      }
+      updateDebug("📍 取得位置中...", "", "info");
 
-      updateDebug("📍 正在取得 GPS 位置...", "", "info");
-
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
           const { latitude, longitude } = position.coords;
-          updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`, "success");
+          const profile = await liff.getProfile();
+          const userId = liff.getDecodedIDToken()?.sub;
 
-          try {
-            const profile = await liff.getProfile();
-            const userId = liff.getDecodedIDToken()?.sub;
+          const formData = new FormData();
+          formData.append("userId", userId);
+          formData.append("name", profile.displayName);
+          formData.append("clockType", clockType);
+          formData.append("latitude", latitude);
+          formData.append("longitude", longitude);
 
-            const formData = new FormData();
-            formData.append("userId", userId);
-            formData.append("name", profile.displayName);
-            formData.append("latitude", latitude);
-            formData.append("longitude", longitude);
-            formData.append("clockType", type);
-
-            $.ajax({
-              url: GAS_URL,
-              method: "POST",
-              data: formData,
-              processData: false,
-              contentType: false,
-              success: function (res) {
-                if (res && res.status && res.message) {
-                  showResult(res.message, res.status);
-                } else {
-                  showResult("❌ 無法處理回應", "error");
-                }
-                resetButtons();
-              },
-              error: function (xhr, status, error) {
-                updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
-                showResult("❌ 打卡失敗", "error");
-                resetButtons();
+          $.ajax({
+            url: GAS_URL,
+            method: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (res) {
+              if (res && res.status && res.message) {
+                showResult(res.message, res.status);
+              } else {
+                showResult("❌ 無法處理回應", "error");
               }
-            });
-
-          } catch (err) {
-            updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
-            resetButtons();
-          }
-        },
-        (error) => {
-          updateDebug("❌ 取得 GPS 位置失敗", error.message, "error");
-          resetButtons();
+              resetButton();
+            },
+            error: function (xhr, status, error) {
+              updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
+              showResult("❌ 打卡失敗", "error");
+              resetButton();
+            }
+          });
+        } catch (err) {
+          updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
+          resetButton();
         }
-      );
 
-      function resetButtons() {
-        inBtn.disabled = false;
-        outBtn.disabled = false;
-        inBtn.innerText = inText;
-        outBtn.innerText = outText;
-      }
+        function resetButton() {
+          btn.disabled = false;
+          btn.innerText = originalText;
+        }
+      }, (error) => {
+        updateDebug("❌ 無法取得定位", error.message, "error");
+        btn.disabled = false;
+        btn.innerText = originalText;
+      });
     }
 
-    document.getElementById("clockInButton").addEventListener("click", () => {
-      getLocationAndClock("clockIn");
-    });
+    document.getElementById("clockInButton").addEventListener("click", () => clockAction("in"));
+    document.getElementById("clockOutButton").addEventListener("click", () => clockAction("out"));
+    document.getElementById("delegatedClockInButton").addEventListener("click", () => clockAction("delegated"));
 
-    document.getElementById("clockOutButton").addEventListener("click", () => {
-      getLocationAndClock("clockOut");
-    });
-
-    initLiff();
+    // 初始化 LIFF
+    initializeLIFF();
   </script>
 </body>
 </html>
