@@ -77,7 +77,7 @@
 
   <button id="clockInButton">上班打卡</button>
   <button id="clockOutButton">下班打卡</button>
-  <button id="delegatedClockButton">委派出勤</button>
+  <button id="delegateButton">委派出勤</button>
 
   <div id="debug">
     <div class="log-entry info">
@@ -87,6 +87,11 @@
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx0w3HkBO9LqXCfZjl1MikHhsfnM7pzzBT5bdyu-k_Xyz4BSZRyS5tkz8Cubgztj9Fb/exec";
+    const CLOCK_TYPES = {
+      IN: "clockIn",
+      OUT: "clockOut",
+      DELEGATE: "delegate"
+    };
 
     function showResult(message, status) {
       const type = status === "success" ? "success" : "error";
@@ -122,7 +127,6 @@
     async function getUserInfo() {
       try {
         const profile = await liff.getProfile();
-        const email = liff.getDecodedIDToken()?.email || "(未授權 email)";
         document.getElementById("userInfo").innerHTML = ` 
           <p><strong>名字：</strong>${profile.displayName}</p>
           <img src="${profile.pictureUrl}" width="100" />
@@ -133,47 +137,38 @@
       }
     }
 
-    async function getLocationAndClock(type) {
+    async function getLocationAndClock(clockType) {
       const buttons = {
-        clockIn: document.getElementById("clockInButton"),
-        clockOut: document.getElementById("clockOutButton"),
-        delegated: document.getElementById("delegatedClockButton")
+        [CLOCK_TYPES.IN]: document.getElementById("clockInButton"),
+        [CLOCK_TYPES.OUT]: document.getElementById("clockOutButton"),
+        [CLOCK_TYPES.DELEGATE]: document.getElementById("delegateButton")
       };
 
-      const originalTexts = {
-        clockIn: buttons.clockIn.innerText,
-        clockOut: buttons.clockOut.innerText,
-        delegated: buttons.delegated.innerText
-      };
-
-      buttons[type].disabled = true;
-      buttons[type].innerText = "打卡中...";
-
-      await new Promise(resolve => setTimeout(resolve, 50));
+      const currentButton = buttons[clockType];
+      const originalText = currentButton.innerText;
+      currentButton.disabled = true;
+      currentButton.innerText = "打卡中...";
 
       if (!navigator.geolocation) {
         updateDebug("❌ 這個瀏覽器不支援 GPS 功能", "", "error");
-        resetButtons();
+        resetButton();
         return;
       }
 
       updateDebug("📍 正在取得 GPS 位置...", "", "info");
 
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          updateDebug("✅ GPS 位置取得成功", `緯度：${latitude}\n經度：${longitude}`, "success");
-
+        async ({ coords }) => {
+          updateDebug("✅ GPS 位置取得成功", `緯度：${coords.latitude}\n經度：${coords.longitude}`, "success");
           try {
             const profile = await liff.getProfile();
             const userId = liff.getDecodedIDToken()?.sub;
-
             const formData = new FormData();
             formData.append("userId", userId);
             formData.append("name", profile.displayName);
-            formData.append("latitude", latitude);
-            formData.append("longitude", longitude);
-            formData.append("clockType", type);
+            formData.append("latitude", coords.latitude);
+            formData.append("longitude", coords.longitude);
+            formData.append("clockType", clockType);
 
             $.ajax({
               url: GAS_URL,
@@ -181,43 +176,40 @@
               data: formData,
               processData: false,
               contentType: false,
-              success: function (res) {
-                if (res && res.status && res.message) {
+              success: (res) => {
+                if (res?.status && res?.message) {
                   showResult(res.message, res.status);
                 } else {
                   showResult("❌ 無法處理回應", "error");
                 }
-                resetButtons();
+                resetButton();
               },
-              error: function (xhr, status, error) {
+              error: (xhr, status, error) => {
                 updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
                 showResult("❌ 打卡失敗", "error");
-                resetButtons();
+                resetButton();
               }
             });
-
           } catch (err) {
             updateDebug("❌ 發送資料失敗", err.message || JSON.stringify(err), "error");
-            resetButtons();
+            resetButton();
           }
         },
         (error) => {
           updateDebug("❌ 取得 GPS 位置失敗", error.message, "error");
-          resetButtons();
+          resetButton();
         }
       );
 
-      function resetButtons() {
-        for (const key in buttons) {
-          buttons[key].disabled = false;
-          buttons[key].innerText = originalTexts[key];
-        }
+      function resetButton() {
+        currentButton.disabled = false;
+        currentButton.innerText = originalText;
       }
     }
 
-    document.getElementById("clockInButton").addEventListener("click", () => getLocationAndClock("clockIn"));
-    document.getElementById("clockOutButton").addEventListener("click", () => getLocationAndClock("clockOut"));
-    document.getElementById("delegatedClockButton").addEventListener("click", () => getLocationAndClock("delegated"));
+    document.getElementById("clockInButton").addEventListener("click", () => getLocationAndClock(CLOCK_TYPES.IN));
+    document.getElementById("clockOutButton").addEventListener("click", () => getLocationAndClock(CLOCK_TYPES.OUT));
+    document.getElementById("delegateButton").addEventListener("click", () => getLocationAndClock(CLOCK_TYPES.DELEGATE));
 
     initLiff();
   </script>
