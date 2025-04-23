@@ -77,6 +77,7 @@
 
   <button id="clockInButton">上班打卡</button>
   <button id="clockOutButton">下班打卡</button>
+  <button id="delegatedClockButton">委派出勤</button>
 
   <div id="debug">
     <div class="log-entry info">
@@ -133,21 +134,21 @@
     }
 
     async function getLocationAndClock(type) {
-      const inBtn = document.getElementById("clockInButton");
-      const outBtn = document.getElementById("clockOutButton");
-      const inText = inBtn.innerText;
-      const outText = outBtn.innerText;
+      const buttons = {
+        clockIn: document.getElementById("clockInButton"),
+        clockOut: document.getElementById("clockOutButton"),
+        delegated: document.getElementById("delegatedClockButton")
+      };
 
-      // 立即變更按鈕文字與狀態
-      if (type === "clockIn") {
-        inBtn.disabled = true;
-        inBtn.innerText = "打卡中...";
-      } else {
-        outBtn.disabled = true;
-        outBtn.innerText = "打卡中...";
-      }
+      const originalTexts = {
+        clockIn: buttons.clockIn.innerText,
+        clockOut: buttons.clockOut.innerText,
+        delegated: buttons.delegated.innerText
+      };
 
-      // 等待畫面更新
+      buttons[type].disabled = true;
+      buttons[type].innerText = "打卡中...";
+
       await new Promise(resolve => setTimeout(resolve, 50));
 
       if (!navigator.geolocation) {
@@ -207,20 +208,16 @@
       );
 
       function resetButtons() {
-        inBtn.disabled = false;
-        outBtn.disabled = false;
-        inBtn.innerText = inText;
-        outBtn.innerText = outText;
+        for (const key in buttons) {
+          buttons[key].disabled = false;
+          buttons[key].innerText = originalTexts[key];
+        }
       }
     }
 
-    document.getElementById("clockInButton").addEventListener("click", () => {
-      getLocationAndClock("clockIn");
-    });
-
-    document.getElementById("clockOutButton").addEventListener("click", () => {
-      getLocationAndClock("clockOut");
-    });
+    document.getElementById("clockInButton").addEventListener("click", () => getLocationAndClock("clockIn"));
+    document.getElementById("clockOutButton").addEventListener("click", () => getLocationAndClock("clockOut"));
+    document.getElementById("delegatedClockButton").addEventListener("click", () => getLocationAndClock("delegated"));
 
     initLiff();
   </script>
