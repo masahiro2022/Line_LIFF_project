@@ -78,6 +78,7 @@
   <button id="clockInButton">上班打卡</button>
   <button id="clockOutButton">下班打卡</button>
   <button id="delegateButton">委派出勤</button>
+  <button id="recordButton">打卡紀錄</button>
 
   <div id="debug">
     <div class="log-entry info">
@@ -86,7 +87,7 @@
   </div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbx9HqzB0aVARt75X3L3SZJKYuvX94nyY-mc_uF28LwqxljwRJeCCQjv7DbB5b576_5T/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzec5ma2UJWUojKtTWoMZA9bEY4cghcFsymopzeNQWQ-tY5qlwPXsxZuZ9ZAioMXzuA/exec";
     const CLOCK_TYPES = {
       IN: "clockIn",
       OUT: "clockOut",
@@ -94,7 +95,7 @@
     };
 
     function showResult(message, status) {
-      const type = status === "success" ? "success" : "error";
+      const type = status === "success" ? "success" : (status === "empty" ? "info" : "error");
       updateDebug(`📌 ${message}`, "", type);
     }
 
@@ -210,6 +211,39 @@
     document.getElementById("clockInButton").addEventListener("click", () => getLocationAndClock(CLOCK_TYPES.IN));
     document.getElementById("clockOutButton").addEventListener("click", () => getLocationAndClock(CLOCK_TYPES.OUT));
     document.getElementById("delegateButton").addEventListener("click", () => getLocationAndClock(CLOCK_TYPES.DELEGATE));
+
+    document.getElementById("recordButton").addEventListener("click", async () => {
+      try {
+        const userId = liff.getDecodedIDToken()?.sub;
+        updateDebug("📥 正在查詢今日打卡紀錄...", "", "info");
+
+        const formData = new FormData();
+        formData.append("action", "getRecord");
+        formData.append("userId", userId);
+
+        $.ajax({
+          url: GAS_URL,
+          method: "POST",
+          data: formData,
+          processData: false,
+          contentType: false,
+          success: (res) => {
+            if (res?.status && res?.message) {
+              showResult(res.message, res.status);
+            } else {
+              showResult("❌ 回傳資料格式錯誤", "error");
+            }
+          },
+          error: (xhr, status, error) => {
+            updateDebug("❌ 查詢紀錄失敗", `狀態：${status}, 錯誤：${error}`, "error");
+            showResult("❌ 查詢失敗", "error");
+          }
+        });
+      } catch (err) {
+        updateDebug("❌ 查詢打卡紀錄失敗", err.message || JSON.stringify(err), "error");
+        showResult("❌ 查詢失敗", "error");
+      }
+    });
 
     initLiff();
   </script>
