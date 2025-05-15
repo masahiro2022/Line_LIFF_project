@@ -1,1 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>缺失紀錄表單</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    form {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.8rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      margin-top: 2rem;
+      padding: 1rem;
+      width: 100%;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .status {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>缺失稽核</h1>
+  <form id="defectForm">
+    <label for="name">姓名</label>
+    <select id="name" name="name" required>
+      <option value="">載入中...</option>
+    </select>
 
+    <label for="department">部門</label>
+    <select id="department" name="department" required>
+      <option value="">載入中...</option>
+    </select>
+
+    <label for="description">缺失描述</label>
+    <textarea id="description" name="description" rows="5" required></textarea>
+
+    <button type="submit">送出紀錄</button>
+    <div class="status" id="status"></div>
+  </form>
+
+  <script>
+    // 載入選項資料
+    google.script.run
+      .withSuccessHandler((data) => {
+        const nameSelect = document.getElementById("name");
+        nameSelect.innerHTML = '<option value="">請選擇姓名</option>';
+        data.names.forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          nameSelect.appendChild(opt);
+        });
+
+        const deptSelect = document.getElementById("department");
+        deptSelect.innerHTML = '<option value="">請選擇部門</option>';
+        data.departments.forEach(dept => {
+          const opt = document.createElement("option");
+          opt.value = dept;
+          opt.textContent = dept;
+          deptSelect.appendChild(opt);
+        });
+      })
+      .withFailureHandler(err => {
+        document.getElementById("status").textContent = "❌ 載入選項失敗：" + (err.message || err);
+      })
+      .取得缺失表單選項();
+
+    // 表單送出
+    document.getElementById("defectForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      document.getElementById("status").textContent = "送出中...";
+
+      const formData = {
+        name: document.getElementById("name").value,
+        department: document.getElementById("department").value,
+        description: document.getElementById("description").value
+      };
+
+      google.script.run
+        .withSuccessHandler(res => {
+          document.getElementById("status").textContent = "✅ 已成功送出紀錄";
+          document.getElementById("defectForm").reset();
+        })
+        .withFailureHandler(err => {
+          document.getElementById("status").textContent = "❌ 送出失敗：" + (err.message || err);
+        })
+        .送出缺失紀錄(formData);
+    });
+  </script>
+</body>
+</html>
