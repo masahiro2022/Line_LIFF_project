@@ -3,126 +3,211 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>缺失紀錄表單</title>
+  <title>缺失稽核</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      background-color: #f4f4f4;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 1.5rem;
+      background-color: #f5f5f5;
     }
     h1 {
-      text-align: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
       color: #333;
-    }
-    form {
-      background: #fff;
-      padding: 2rem;
-      border-radius: 8px;
-      max-width: 600px;
-      margin: auto;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     label {
       display: block;
       margin-top: 1rem;
-      font-weight: bold;
+      margin-bottom: 0.3rem;
+      color: #555;
     }
-    input, select, textarea {
+    select, textarea, button {
       width: 100%;
-      padding: 0.8rem;
-      margin-top: 0.5rem;
+      padding: 0.6rem;
+      font-size: 1rem;
       border: 1px solid #ccc;
-      border-radius: 4px;
+      border-radius: 6px;
+      box-sizing: border-box;
     }
     button {
-      margin-top: 2rem;
-      padding: 1rem;
-      width: 100%;
-      background-color: #28a745;
+      margin-top: 1.5rem;
+      background-color: #06c755;
       color: white;
       border: none;
-      border-radius: 4px;
-      font-size: 1.2rem;
       cursor: pointer;
+      font-weight: bold;
     }
     button:hover {
-      background-color: #218838;
+      background-color: #04a04f;
     }
-    .status {
-      margin-top: 1rem;
-      text-align: center;
-      font-size: 1rem;
+    #debug {
+      margin-top: 2rem;
+      max-height: 250px;
+      overflow-y: auto;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ddd;
     }
+    .log-entry {
+      margin-bottom: 0.8rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px dashed #ddd;
+    }
+    .log-entry.success .timestamp { color: green; }
+    .log-entry.error .timestamp { color: red; }
+    .log-entry.info .timestamp { color: #0077cc; }
   </style>
 </head>
 <body>
-  <h1>缺失稽核</h1>
-  <form id="defectForm">
-    <label for="name">姓名</label>
-    <select id="name" name="name" required>
-      <option value="">載入中...</option>
-    </select>
+  <h1>缺失稽核表單</h1>
+  
+  <label for="departmentSelect">部門</label>
+  <select id="departmentSelect">
+    <option>載入中...</option>
+  </select>
 
-    <label for="department">部門</label>
-    <select id="department" name="department" required>
-      <option value="">載入中...</option>
-    </select>
+  <label for="nameSelect">姓名</label>
+  <select id="nameSelect">
+    <option>載入中...</option>
+  </select>
 
-    <label for="description">缺失描述</label>
-    <textarea id="description" name="description" rows="5" required></textarea>
+  <label for="contentInput">缺失內容</label>
+  <textarea id="contentInput" rows="4" placeholder="請輸入缺失內容..."></textarea>
 
-    <button type="submit">送出紀錄</button>
-    <div class="status" id="status"></div>
-  </form>
+  <button id="submitButton">送出表單</button>
+
+  <div id="debug">
+    <strong>📋 Debug 訊息：</strong>
+  </div>
 
   <script>
-    // 載入選項資料
-    google.script.run
-      .withSuccessHandler((data) => {
-        const nameSelect = document.getElementById("name");
-        nameSelect.innerHTML = '<option value="">請選擇姓名</option>';
-        data.names.forEach(name => {
-          const opt = document.createElement("option");
-          opt.value = name;
-          opt.textContent = name;
-          nameSelect.appendChild(opt);
-        });
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxUKFblGP1fv6Io0Q3KOZw-Bv2ljw9GRuNBMmkP81v5he6F51U1vuff7ckKnSg0RSAnDA/exec"; // 🔁 替換為你的 Web App URL
 
-        const deptSelect = document.getElementById("department");
-        deptSelect.innerHTML = '<option value="">請選擇部門</option>';
-        data.departments.forEach(dept => {
-          const opt = document.createElement("option");
-          opt.value = dept;
-          opt.textContent = dept;
-          deptSelect.appendChild(opt);
-        });
-      })
-      .withFailureHandler(err => {
-        document.getElementById("status").textContent = "❌ 載入選項失敗：" + (err.message || err);
-      })
-      .取得缺失表單選項();
+    async function initLiff() {
+      try {
+        await liff.init({ liffId: "2007299608-oa1mk1WJ" }); // 🔁 替換為你的 LIFF ID
+        if (!liff.isLoggedIn()) {
+          liff.login();
+        } else {
+          getUserAndLoadOptions();
+        }
+      } catch (e) {
+        updateDebug("❌ LIFF 初始化失敗", e.message, "error");
+      }
+    }
 
-    // 表單送出
-    document.getElementById("defectForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      document.getElementById("status").textContent = "送出中...";
+    async function getUserAndLoadOptions() {
+      try {
+        const profile = await liff.getProfile();
+        const email = liff.getDecodedIDToken()?.email;
+        updateDebug("✅ 使用者資訊載入成功", `姓名：${profile.displayName}\nEmail：${email}`, "success");
 
-      const formData = {
-        name: document.getElementById("name").value,
-        department: document.getElementById("department").value,
-        description: document.getElementById("description").value
-      };
+        window.auditUser = {
+          name: profile.displayName,
+          email
+        };
 
-      google.script.run
-        .withSuccessHandler(res => {
-          document.getElementById("status").textContent = "✅ 已成功送出紀錄";
-          document.getElementById("defectForm").reset();
-        })
-        .withFailureHandler(err => {
-          document.getElementById("status").textContent = "❌ 送出失敗：" + (err.message || err);
-        })
-        .送出缺失紀錄(formData);
-    });
+        loadFormOptions();
+      } catch (e) {
+        updateDebug("❌ 使用者資訊取得失敗", e.message, "error");
+      }
+    }
+
+    function loadFormOptions() {
+      updateDebug("📥 載入部門與姓名選項中...", "", "info");
+
+      const formData = new FormData();
+      formData.append("action", "getAuditFormOptions");
+
+      $.ajax({
+        url: GAS_URL,
+        method: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: (res) => {
+          try {
+            const data = typeof res === "string" ? JSON.parse(res) : res;
+            if (data.status === "success") {
+              populateDropdown("departmentSelect", data.departments);
+              populateDropdown("nameSelect", data.names);
+              updateDebug("✅ 表單選項載入完成", "", "success");
+            } else {
+              updateDebug("❌ 表單選項載入錯誤", data.message, "error");
+            }
+          } catch (err) {
+            updateDebug("❌ JSON 格式錯誤", err.message, "error");
+          }
+        },
+        error: (xhr, status, error) => {
+          updateDebug("❌ AJAX 錯誤", `狀態：${status}, 錯誤：${error}`, "error");
+        }
+      });
+    }
+
+    function populateDropdown(id, options) {
+      const select = document.getElementById(id);
+      select.innerHTML = options.map(opt => `<option value="${opt}">${opt}</option>`).join("");
+    }
+
+    function submitForm() {
+      const name = document.getElementById("nameSelect").value;
+      const department = document.getElementById("departmentSelect").value;
+      const content = document.getElementById("contentInput").value;
+      const email = window.auditUser?.email;
+
+      if (!content) {
+        updateDebug("⚠️ 缺失內容不得為空", "", "error");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("action", "submitAudit");
+      formData.append("name", name);
+      formData.append("department", department);
+      formData.append("content", content);
+      formData.append("email", email);
+
+      updateDebug("📤 表單送出中...", "", "info");
+
+      $.ajax({
+        url: GAS_URL,
+        method: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: (res) => {
+          try {
+            const data = typeof res === "string" ? JSON.parse(res) : res;
+            updateDebug(data.message, "", data.status === "success" ? "success" : "error");
+          } catch (err) {
+            updateDebug("❌ JSON 解析失敗", err.message, "error");
+          }
+        },
+        error: (xhr, status, error) => {
+          updateDebug("❌ 表單送出失敗", `狀態：${status}, 錯誤：${error}`, "error");
+        }
+      });
+    }
+
+    function updateDebug(status, details = "", type = "info") {
+      const timestamp = new Date().toLocaleTimeString();
+      const log = document.createElement("div");
+      log.className = `log-entry ${type}`;
+      log.innerHTML = `  
+        <div class="timestamp">[${timestamp}] ${status}</div>
+        ${details ? `<div style="margin-top: 0.3rem; color:#666;">${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}</div>` : ""}`;
+      const debugPanel = document.getElementById("debug");
+      debugPanel.appendChild(log);
+      debugPanel.scrollTop = debugPanel.scrollHeight;
+    }
+
+    document.getElementById("submitButton").addEventListener("click", submitForm);
+    initLiff();
   </script>
 </body>
 </html>
